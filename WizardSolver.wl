@@ -1,6 +1,10 @@
 (* ::Package:: *)
 
-(* Version 1.3.1 *)
+(* ::Text:: *)
+(*(* Version 1.3.2 *)*)
+
+
+(* \:521d\:59cb\:5316 *)
 $Language="English";
 Letters=CharacterRange["A","Z"];
 Vowels={"A","E","I","O","U"};
@@ -23,6 +27,8 @@ PatRule=Characters@
 	"4"->"DHLPTX",
 	"5"->"EJOTY"
 |>;
+LetterCode[char_]:=(ToCharacterCode[char]-64)[[1]];
+
 
 PossibleWords[format_,testlist_]:=Module[
 	{
@@ -34,7 +40,7 @@ PossibleWords[format_,testlist_]:=Module[
 		
 		test,tst,            (* \:6d4b\:8bd5\:5217\:8868\:ff0c\:6d4b\:8bd5\:7684\:6570\:91cf *)
 		expression,          (* \:7b49\:5f0f\:6761\:4ef6\:4e2d\:7684\:8868\:8fbe\:5f0f *)
-		position,            (* \:8bb0\:5f55\:51fa\:73b0\:7684\:5e8f\:53f7 *)
+		position,            (* \:8bb0\:5f55\:6761\:4ef6\:4e2d\:51fa\:73b0\:7684\:5e8f\:53f7 *)
 		pattern,number,      (* \:7edf\:8ba1\:6761\:4ef6\:4e2d\:7684\:6a21\:5f0f\:ff0c\:6570\:76ee *)
 		next={},             (* \:8bb0\:5f55\:7ffb\:9875\:5730\:5740 *)
 		failed={},           (* \:5224\:5b9a\:662f\:5426\:9519\:8bef *)
@@ -56,13 +62,13 @@ PossibleWords[format_,testlist_]:=Module[
 			"#"|"@"|"*",                               (* \:5b57\:6bcd *)
 				ltr++;
 				inversed=False;
-				AppendTo[letter,identifier/.PatRule],
+				AppendTo[letter,PatRule[identifier]],
 			"!",                                       (* \:53cd\:76f8 *)
 				inversed=True,
 			_,                                         (* \:6a21\:5f0f *)
 				If[inversed,
-					letter[[ltr]]=Complement[Letters,identifier/.PatRule]\[Intersection]letter[[ltr]],
-					letter[[ltr]]=(identifier/.PatRule)\[Intersection]letter[[ltr]]
+					letter[[ltr]]=Complement[Letters,PatRule[identifier]]\[Intersection]letter[[ltr]],
+					letter[[ltr]]=PatRule[identifier]\[Intersection]letter[[ltr]]
 				]
 		]
 	];
@@ -70,51 +76,30 @@ PossibleWords[format_,testlist_]:=Module[
 	(* \:6d4b\:8bd5\:51fd\:6570 *)
 	test=StringSplit[testlist,";"];
 	tst=Length@test;
-	failed=ConstantArray[True,tst];
+	failed=ConstantArray[True&,tst];
+	position=ConstantArray[Range@ltr,tst];
 	next=ConstantArray[1,tst];
 	For[k=1,k<=tst,k++,
 		Which[
 			StringContainsQ[test[[k]],"="],                               (* \:7b49\:5f0f\:6761\:4ef6 *)
-				(*expression=StringSplit[test[[k]],"="];
-				failed[[k]]=Module[
-					{
-						outcome={},
-						ii,jj,kk,
-						expr,stack
-					},
-					For[ii=1,ii<=Length@expression,ii++,
-						expr=expression[[ii]];
-						jj=0;kk=0;stack={};
-						While[kk<Length@expr,
-							jj++;
-							Which[
-								DigitQ@StringTake[expr,{jj}],
-									kk=jj;
-									While[DigitQ@StringTake[expr,{kk}],
-										kk++
-									];
-									stack[[jj]]
-							]
-						]
-					]
-					SameQ@@outcome
-				]&;*)
-				(*failed[[k]]=Not@ToExpression[
+				failed[[k]]=ToExpression["!"<>
 					StringReplace[test[[k]],{
-						"&"~~b:NumberString:>"#[["<>b<>"]]",
-						"="->"=="
-					}]<>"&"
-				];*)
-				position=ToExpression/@StringCases[test[[k]],NumberString];
-				next[[k]]=Min@position,
+						"&"~~b:NumberString:>"(LetterCode@#[["<>b<>"]])",
+						"="->"=="}]
+					<>"&"];
+				position[[k]]=ToExpression/@
+					StringCases[test[[k]],
+						"&"~~b:NumberString:>b
+					];
+				next[[k]]=Min@position[[k]],
 			StringContainsQ[test[[k]],"~"],                               (* \:6784\:8bcd\:6761\:4ef6 *)
-				position=ToExpression/@StringSplit[test[[k]],"~"];
-				failed[[k]]=!DictionaryWordQ@StringJoin@#[[position]]&;
-				next[[k]]=Min@position,
+				position[[k]]=ToExpression/@StringSplit[test[[k]],"~"];
+				failed[[k]]=!DictionaryWordQ@StringJoin@#[[position[[k]]]]&;
+				next[[k]]=Min@position[[k]],
 			StringContainsQ[test[[k]],":"],                               (* \:7edf\:8ba1\:6761\:4ef6 *)
 				pattern=StringSplit[test[[k]],":"][[1]];
 				number=ToExpression@StringSplit[test[[k]],":"][[2]];			
-				failed[[k]]=Count[#,char_/;MemberQ[pattern/.PatRule,char]]!=number&;
+				failed[[k]]=Count[#,char_/;MemberQ[PatRule[pattern],char]]!=number&;
 		]
 	];
 	
@@ -125,6 +110,9 @@ PossibleWords[format_,testlist_]:=Module[
 		qualified=True;nxt=1;
 		match=letter[[#,pointer[[#]]]]&/@Range@ltr;
 		For[k=1,k<=tst,k++,
+			(*If[match==Characters@"EXCITED"||match==Characters@"ASSAYED",
+				Print[match,":",failed[[k]],":",failed[[k]]@match];
+			]*)(* \:8c03\:8bd5 *)
 			If[failed[[k]]@match,
 				qualified=False;
 				nxt=next[[k]];
@@ -150,9 +138,6 @@ PossibleWords[format_,testlist_]:=Module[
 ];
 
 
+
 (* ::Code:: *)
-(*Timing@PossibleWords["@#*p@s#a!u@p*s","5~4~6;p:3"]*)
-
-
-(* ::InheritFromParent:: *)
-(*{0.`,PossibleWords["@#*p@s#a!u@p*s","5~4~6;p:3;&7=&6-&4"]}*)
+(*Timing@PossibleWords["@#*p@s#a!u@p*s","5~4~6;p:3;&7=&4-&6"]*)
