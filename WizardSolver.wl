@@ -1,12 +1,16 @@
 (* ::Package:: *)
 
 (* ::Text:: *)
-(*Version 1.3.4*)
-(*\:5f15\:5165\:ff1a\:51fd\:6570\:6761\:4ef6\:ff1aGP(\:7b49\:6bd4\:6570\:5217)\:ff0cPT(\:52fe\:80a1\:6570)\:3002*)
+(*Version 1.3.5*)
+(*\:5f15\:5165\:ff1aDB(\:6574\:9664\:6027)\:ff0cPrF(\:524d\:7f00)\:ff0cPoF(\:540e\:7f00)\:3002*)
+(*\:4f18\:5316\:ff1a\:76f8\:7b49\:5173\:7cfb\:7684\:9884\:5904\:7406\:3002*)
+(*\:4f18\:5316\:ff1aGP\:548cPT\:7684\:4f18\:5316\:3002*)
 
 
 (* \:521d\:59cb\:5316 *)
 $Language="English";
+$debug=False;
+$path=NotebookDirectory[]<>"Library\\";
 Letters=CharacterRange["A","Z"];
 Vowels={"A","E","I","O","U"};
 Consonants=Complement[Letters,Vowels];
@@ -29,19 +33,18 @@ PatRule=Characters@
 	"4"->"DHLPTX",
 	"5"->"EJOTY"
 |>;
-LetterCode[char_]:=(ToCharacterCode[char]-64)[[1]];
+toCode=ToCharacterCode[#][[1]]-64&;
+toLetter=FromCharacterCode[#+64]&;
+PrFdict=StringSplit@Import[$path<>"Prefix.txt"];
+PoFdict=StringSplit@Import[$path<>"Postfix.txt"];
+GPdict=toLetter/@#&/@Select[Tuples[Range@26,3],#[[1]]#[[3]]==#[[2]]^2&];
+PTdict=toLetter/@#&/@Select[Tuples[Range@26,3],#[[1]]^2+#[[2]]^2==#[[3]]^2&];
 
 
+(* \:51fd\:6570\:6761\:4ef6 *)
 GP[a_,b_,c_]:=(a*c==b^2);                 (* \:7b49\:6bd4\:6570\:5217 *)
 PT[a_,b_,c_]:=(a^2+b^2==c^2);             (* \:52fe\:80a1\:6570 *)
 DB[a_,b_]:=(Mod[a,b]==0);                 (* \:6574\:9664\:6027 *)
-FunRule=FromCharacterCode[64+#]&/@#&/@
-<|
-	"GP13"->{1,2,3,4,5,6,8,9,12,16,18,20,24,25},
-	"GP2"->{2,3,4,5,6,8,10,12,15,20},
-	"PT12"->{3,4,5,6,7,8,9,12,15,16,20,24},
-	"PT3"->{5,10,13,17,15,20,25}
-|>;
 
 
 PossibleWords[format_,testlist_]:=Module[
@@ -60,11 +63,12 @@ PossibleWords[format_,testlist_]:=Module[
 		position,            (* \:6761\:4ef6\:4e2d\:51fa\:73b0\:7684\:5e8f\:53f7 *)
 		next,                (* \:8bb0\:5f55\:7ffb\:9875\:5730\:5740 *)
 		failed,              (* \:5224\:5b9a\:662f\:5426\:9519\:8bef *)
+		intersection,
 		
 		do=True,             (* \:662f\:5426\:7ee7\:7eed\:5faa\:73af *)
 		pointer,             (* \:8bb0\:5f55\:6bcf\:4e2a\:4f4d\:7f6e\:5c1d\:8bd5\:5230\:7684\:5b57\:6bcd *)
 		range,               (* \:8bb0\:5f55\:6bcf\:4e2a\:4f4d\:7f6e\:7684\:53ef\:80fd\:5b57\:6bcd\:6570 *)
-		ord,inv,idt,         (* \:6700\:4f18\:7f6e\:6362\:ff0c\:5176\:9006\:6620\:5c04\:ff0c\:6052\:7b49\:6620\:5c04 *)
+		ord,inv,id,          (* \:6700\:4f18\:7f6e\:6362\:ff0c\:5176\:9006\:6620\:5c04\:ff0c\:6052\:7b49\:6620\:5c04 *)
 		match,word,          (* \:53ef\:80fd\:7684\:5b57\:6bcd\:7ec4\:5408\:ff0c\:6784\:6210\:7684\:8bcd *)
 		qualified,nxt,       (* \:662f\:5426\:6ee1\:8db3\:6761\:4ef6\:ff0c\:7ffb\:9875\:5730\:5740 *)
 		
@@ -75,13 +79,13 @@ PossibleWords[format_,testlist_]:=Module[
 	For[i=1,i<=StringLength@format,i++,
 		identifier=StringTake[format,{i}];
 		Switch[identifier,
-			"#"|"@"|"*",                               (* \:5b57\:6bcd *)
+			"#"|"@"|"*",                                (* \:5b57\:6bcd *)
 				ltr++;
 				inversed=False;
 				AppendTo[letter,PatRule[identifier]],
-			"!",                                       (* \:53cd\:76f8 *)
+			"!",                                        (* \:53cd\:76f8 *)
 				inversed=True,
-			_,                                         (* \:6a21\:5f0f *)
+			_,                                          (* \:6a21\:5f0f *)
 				If[inversed,
 					letter[[ltr]]=Complement[Letters,PatRule[identifier]]\[Intersection]letter[[ltr]],
 					letter[[ltr]]=PatRule[identifier]\[Intersection]letter[[ltr]]
@@ -98,42 +102,40 @@ PossibleWords[format_,testlist_]:=Module[
 	next=ConstantArray[1,tst];
 	For[k=1,k<=tst,k++,
 		Which[
-			StringContainsQ[test[[k]],"["],                               (* \:51fd\:6570\:6761\:4ef6 *)
+			StringContainsQ[test[[k]],"["],                                           (* \:51fd\:6570\:6761\:4ef6 *)
 				failed[[k]]=ToExpression["!"<>
-					StringReplace[test[[k]],b:NumberString:>"(LetterCode@#[["<>b<>"]])"]
+					StringReplace[test[[k]],b:NumberString:>"(toCode@#[["<>b<>"]])"]
 				<>"&"];
 				position[[k]]=ToExpression/@StringCases[test[[k]],NumberString];
-				function[[k]]=StringSplit[test[[k]],"["~~__~~"]"];
-				(*Switch[function[[k]],
-					"GP",
-						letter[[position[[k,1]]]]=letter[[position[[k,1]]]]\[Intersection]FunRule["GP13"];
-						letter[[position[[k,2]]]]=letter[[position[[k,2]]]]\[Intersection]FunRule["GP2"];
-						letter[[position[[k,3]]]]=letter[[position[[k,3]]]]\[Intersection]FunRule["GP13"];
-				]*),
-			StringContainsQ[test[[k]],"="],                               (* \:7b49\:5f0f\:6761\:4ef6 *)
+				function[[k]]=StringSplit[test[[k]],"["~~__~~"]"];,
+			StringContainsQ[test[[k]],"="],                                           (* \:7b49\:5f0f\:6761\:4ef6 *)
 				failed[[k]]=ToExpression["!"<>
 					StringReplace[test[[k]],{
-						"&"~~b:NumberString:>"(LetterCode@#[["<>b<>"]])",
+						"&"~~b:NumberString:>"(toCode@#[["<>b<>"]])",
 						"="->"=="}]
 					<>"&"];
 				position[[k]]=ToExpression/@StringCases[test[[k]],"&"~~b:NumberString:>b];
-			StringContainsQ[test[[k]],"~"],                               (* \:6784\:8bcd\:6761\:4ef6 *)
+				If[StringMatchQ[test[[k]],("&"~~NumberString~~"=")..~~"&"~~NumberString],
+					intersection=Intersection@@letter[[position[[k]]]];
+					Do[letter[[position[[k,l]]]]=intersection,{l,Length@position[[k]]}];
+				]
+			StringContainsQ[test[[k]],"~"],                                           (* \:6784\:8bcd\:6761\:4ef6 *)
 				position[[k]]=ToExpression/@StringSplit[test[[k]],"~"];
 				failed[[k]]=!DictionaryWordQ@StringJoin@#[[position[[k]]]]&;
-			StringContainsQ[test[[k]],":"],                               (* \:7edf\:8ba1\:6761\:4ef6 *)
+			StringContainsQ[test[[k]],":"],                                           (* \:7edf\:8ba1\:6761\:4ef6 *)
 				pattern=StringSplit[test[[k]],":"][[1]];
 				number=ToExpression@StringSplit[test[[k]],":"][[2]];
 				position[[k]]=Range@ltr;
 				failed[[k]]=Count[#,char_/;MemberQ[PatRule[pattern],char]]!=number&;
 		];
 	];
-	(*Print[Column@failed];Print[position];*)
+	If[$debug,Print[Column@failed];Print[position];];
 	
 	(* \:4f9d\:6b21\:5339\:914d *)
 	count=0;
-	idt=Range@ltr;
-	inv=idt;
-	ord=Reverse@DeleteDuplicates@Flatten@SortBy[Join[position,{idt}],Length];
+	id=Range@ltr;
+	inv=id;
+	ord=Reverse@DeleteDuplicates@Flatten@SortBy[Join[position,{id}],Length];
 	For[i=1,i<=ltr,i++,
 		inv[[ord[[i]]]]=i;
 	];
@@ -142,10 +144,10 @@ PossibleWords[format_,testlist_]:=Module[
 	];
 	range=Length/@letter[[ord]];
 	pointer=ConstantArray[1,ltr];
-	(*Print[ord];Print[range];*)
+	If[$debug,Print[ord];Print[range]];
 	While[do,
 		qualified=True;nxt=1;
-		match=letter[[#,pointer[[inv[[#]]]]]]&/@idt;
+		match=letter[[#,pointer[[inv[[#]]]]]]&/@id;
 		For[k=1,k<=tst,k++,
 			If[failed[[k]]@match,
 				qualified=False;
@@ -168,18 +170,13 @@ PossibleWords[format_,testlist_]:=Module[
 		count++;
 	];
 	If[$debug,Print[count]];
-	(* \:7ed3\:679c *)
 	answer
 ];
 
 
 (* ::Code:: *)
-(*$debug=False;(* \:662f\:5426\:8c03\:8bd5 *)*)
+(*Timing@PossibleWords["#p@s#s@#@##s","&1=&5;&2=&4;GP[3,7,8];DB[6,4]"]*)
 
 
 (* ::Code:: *)
-(*Timing@PossibleWords["#@#s@#@##s","&1=&5;&2=&4;GP[3,7,8]"]*)
-
-
-(* ::Code:: *)
-(*Timing[PossibleWords["#@#s@#@##s", "&1=&5;&2=&4;GP[4,5,6];GP[3,7,8]"]]*)
+(*Timing@PossibleWords["#@#c@#@#@","&2=&4=&4;&3=&7;&1=&3-1;&2=&3+1"]*)
