@@ -12,6 +12,9 @@
 $Language="English";
 $debug=False;
 $path=NotebookDirectory[]<>"Library\\";
+toCode=ToCharacterCode[#][[1]]-96&;
+toLetter=FromCharacterCode[#+96]&;
+(* Dictionary *)
 Letters=CharacterRange["a","z"];
 preDict=StringSplit@Import[$path<>"Prefix.txt"];
 postDict=StringSplit@Import[$path<>"Postfix.txt"];
@@ -19,8 +22,6 @@ patDict=StringSplit[Import[$path<>"Pattern.txt"],"\n"];
 patName=StringTake[Take[patDict,{1,-2,2}],1];
 patLetter=Take[patDict,{2,-1,2}];
 patRule=Characters@Association[#[[1]]->#[[2]]&/@Transpose@{patName,patLetter}];
-toCode=ToCharacterCode[#][[1]]-96&;
-toLetter=FromCharacterCode[#+96]&;
 (* Functional tests *)
 GP[a_,b_,c_]:=(a*c==b^2);                 (* Geometric Progression *)
 PT[a_,b_,c_]:=(a^2+b^2==c^2);             (* pythagorean Triple    *)
@@ -104,10 +105,17 @@ PossibleWords[format_,testlist_]:=Module[
 				If[StringMatchQ[test[[k]],("&"~~NumberString~~"=")..~~"&"~~NumberString],
 					temp=Intersection@@letter[[position[[k]]]];
 					Do[letter[[position[[k,l]]]]=temp,{l,Length@position[[k]]}];
-				]
+				],
 			StringContainsQ[test[[k]],"~"],                                           (* \:6784\:8bcd\:6761\:4ef6 *)
 				AppendTo[position,ToExpression/@StringSplit[test[[k]],"~"]];
-				AppendTo[failed,!DictionaryWordQ@StringJoin@#[[position[[k]]]]&];
+				Which[
+					StringTake[test[[k]],{1}]=="~",
+					AppendTo[failed,!MemberQ[postDict,StringJoin@#[[position[[k]]]]]&],
+					StringTake[test[[k]],{-1}]=="~",
+					AppendTo[failed,!MemberQ[preDict,StringJoin@#[[position[[k]]]]]&],
+					True,
+					AppendTo[failed,!DictionaryWordQ@StringJoin@#[[position[[k]]]]&]
+				],
 			StringContainsQ[test[[k]],":"],                                           (* \:7edf\:8ba1\:6761\:4ef6 *)
 				pattern=StringSplit[test[[k]],":"][[1]];
 				number=ToExpression@StringSplit[test[[k]],":"][[2]];
@@ -169,8 +177,8 @@ PossibleWords[format_,testlist_]:=Module[
 
 
 (* ::Code:: *)
-(*AbsoluteTiming@PossibleWords["#p@#s@#@##s","&1=&5;&2=&4;GP[3,7,8]"]*)
+(*AbsoluteTiming@PossibleWords["#p@#s@#@##s","&1=&5;&2=&4;GP[3,7,8];~6~7~8"]*)
 
 
 (* ::Code:: *)
-(*Timing@PossibleWords["#@#c@#@#@","&2=&4=&6;&3=&7;5~6~7~8"]*)
+(*Timing@PossibleWords["#@#c@#45@#@","&3=&7;&2=15;1~2~3~4~;~8~7"]*)
