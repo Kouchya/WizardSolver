@@ -12,40 +12,21 @@
 $Language="English";
 $debug=False;
 $path=NotebookDirectory[]<>"Library\\";
-Letters=CharacterRange["A","Z"];
-Vowels={"A","E","I","O","U"};
-Consonants=Complement[Letters,Vowels];
-PatRule=Characters@
-<|
-	"*"->StringJoin@Letters,
-	"@"->StringJoin@Vowels,
-	"#"->StringJoin@Consonants,
-	"a"->"ABCDEHIKMOTUVWXY",               (* Axial Symmetry   *)
-	"c"->"HINOSXZ",                        (* Central Symmetry *)
-	"l"->"ABDOPQR",                        (* With Loop        *)   
-	"u"->"BCDGIJLMNOPRSUVWZ",              (* Unicursal        *)
-	"p"->"BCEGKMQSW",                      (* Prime Number     *)
-	"d"->"DFHIJLNOPRTUVXYZ",               (* Divisible Number *)
-	"s"->"ADIPY",                          (* Square Number    *)
-	"f"->"DHILPRTXY",                      (* Square-Free      *)
-	"e"->"BCFHIKNOPSUVWY",                 (* Chemical Element *)
-	"2"->"BDFHJLNPRTVXZ",
-	"3"->"CFILORUX",
-	"4"->"DHLPTX",
-	"5"->"EJOTY"
-|>;
-toCode=ToCharacterCode[#][[1]]-64&;
-toLetter=FromCharacterCode[#+64]&;
-predict=StringSplit@Import[$path<>"Prefix.txt"];
-postdict=StringSplit@Import[$path<>"Postfix.txt"];
-GPdict=toLetter/@#&/@Select[Tuples[Range@26,3],#[[1]]#[[3]]==#[[2]]^2&];
-PTdict=toLetter/@#&/@Select[Tuples[Range@26,3],#[[1]]^2+#[[2]]^2==#[[3]]^2&];
-
-
+Letters=CharacterRange["a","z"];
+preDict=StringSplit@Import[$path<>"Prefix.txt"];
+postDict=StringSplit@Import[$path<>"Postfix.txt"];
+patDict=StringSplit[Import[$path<>"Pattern.txt"],"\n"];
+patName=StringTake[Take[patDict,{1,-2,2}],1];
+patLetter=Take[patDict,{2,-1,2}];
+patRule=Characters@Association[#[[1]]->#[[2]]&/@Transpose@{patName,patLetter}];
+toCode=ToCharacterCode[#][[1]]-96&;
+toLetter=FromCharacterCode[#+96]&;
 (* Functional tests *)
 GP[a_,b_,c_]:=(a*c==b^2);                 (* Geometric Progression *)
 PT[a_,b_,c_]:=(a^2+b^2==c^2);             (* pythagorean Triple    *)
 DB[a_,b_]:=(Mod[a,b]==0);                 (* Divisible By          *)
+GPdict=toLetter/@#&/@Select[Tuples[Range@26,3],GP@@#&];
+PTdict=toLetter/@#&/@Select[Tuples[Range@26,3],PT@@#&];
 
 
 PossibleWords[format_,testlist_]:=Module[
@@ -85,13 +66,13 @@ PossibleWords[format_,testlist_]:=Module[
 			"#"|"@"|"*",                                (* letter *)
 				ltr++;
 				inverted=False;
-				AppendTo[letter,PatRule[identifier]],
+				AppendTo[letter,patRule[identifier]],
 			"!",                                        (* opposition *)
 				inverted=True,
 			_,                                          (* pattern *)
 				If[inverted,
-					letter[[ltr]]=Complement[Letters,PatRule[identifier]]\[Intersection]letter[[ltr]],
-					letter[[ltr]]=PatRule[identifier]\[Intersection]letter[[ltr]]
+					letter[[ltr]]=Complement[Letters,patRule[identifier]]\[Intersection]letter[[ltr]],
+					letter[[ltr]]=patRule[identifier]\[Intersection]letter[[ltr]]
 				];
 		];
 	];
@@ -131,7 +112,7 @@ PossibleWords[format_,testlist_]:=Module[
 				pattern=StringSplit[test[[k]],":"][[1]];
 				number=ToExpression@StringSplit[test[[k]],":"][[2]];
 				AppendTo[position,Range@ltr];
-				AppendTo[failed,Count[#,char_/;MemberQ[PatRule[pattern],char]]!=number&];
+				AppendTo[failed,Count[#,char_/;MemberQ[patRule[pattern],char]]!=number&];
 		];
 	];
 	If[$debug,Print[Column@failed];Print[position];];
@@ -169,7 +150,7 @@ PossibleWords[format_,testlist_]:=Module[
 		];
 		word=StringJoin@@match;
 		If[qualified&&DictionaryWordQ@word,
-			AppendTo[answer,ToLowerCase@word];
+			AppendTo[answer,word];
 		];
 		For[j=1,j<nxt,j++,
 			pointer[[j]]=1;
@@ -192,4 +173,4 @@ PossibleWords[format_,testlist_]:=Module[
 
 
 (* ::Code:: *)
-(*Timing@PossibleWords["#@#c@#@#@","&2=&4=&6;&3=&7;&2=&3+1"]*)
+(*Timing@PossibleWords["#@#c@#@#@","&2=&4=&6;&3=&7;5~6~7~8"]*)
