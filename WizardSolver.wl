@@ -2,8 +2,9 @@
 
 (* ::Text:: *)
 (*Version 1.3.5*)
-(*\:5f15\:5165\:ff1aDB(\:6574\:9664\:6027)\:ff0cPrF(\:524d\:7f00)\:ff0cPoF(\:540e\:7f00)\:3002*)
+(*\:5f15\:5165\:ff1a\:6784\:8bcd\:6761\:4ef6\:4e2d\:52a0\:5165\:4e86\:524d\:540e\:7f00\:3002*)
 (*\:4f18\:5316\:ff1a\:76f8\:7b49\:5173\:7cfb\:7684\:9884\:5904\:7406\:3002*)
+(*\:4f18\:5316\:ff1a\:5224\:65ad\:65f6\:7684\:8fdb\:6b65\:673a\:5236\:3002*)
 (*\:4f18\:5316\:ff1aGP\:548cPT\:7684\:4f18\:5316\:3002*)
 
 
@@ -19,15 +20,15 @@ PatRule=Characters@
 	"*"->StringJoin@Letters,
 	"@"->StringJoin@Vowels,
 	"#"->StringJoin@Consonants,
-	"a"->"ABCDEHIKMOTUVWXY",               (* \:8f74\:5bf9\:79f0   *)
-	"c"->"HINOSXZ",                        (* \:4e2d\:5fc3\:5bf9\:79f0 *)
-	"r"->"ABDOPQR",                        (* \:542b\:5708     *)   
-	"u"->"BCDGIJLMNOPRSUVWZ",              (* \:4e00\:7b14\:753b   *)
-	"p"->"BCEGKMQSW",                      (* \:7d20\:6570     *)
-	"d"->"DFHIJLNOPRTUVXYZ",               (* \:5408\:6570     *)
-	"s"->"ADIPY",                          (* \:5e73\:65b9\:6570   *)
-	"f"->"DHILPRTXY",                      (* \:5e73\:65b9\:56e0\:5b50 *)
-	"e"->"BCFHIKNOPSUVWY",                 (* \:5143\:7d20     *)
+	"a"->"ABCDEHIKMOTUVWXY",               (* Axial Symmetry   *)
+	"c"->"HINOSXZ",                        (* Central Symmetry *)
+	"l"->"ABDOPQR",                        (* With Loop        *)   
+	"u"->"BCDGIJLMNOPRSUVWZ",              (* Unicursal        *)
+	"p"->"BCEGKMQSW",                      (* Prime Number     *)
+	"d"->"DFHIJLNOPRTUVXYZ",               (* Divisible Number *)
+	"s"->"ADIPY",                          (* Square Number    *)
+	"f"->"DHILPRTXY",                      (* Square-Free      *)
+	"e"->"BCFHIKNOPSUVWY",                 (* Chemical Element *)
 	"2"->"BDFHJLNPRTVXZ",
 	"3"->"CFILORUX",
 	"4"->"DHLPTX",
@@ -35,7 +36,7 @@ PatRule=Characters@
 |>;
 toCode=ToCharacterCode[#][[1]]-64&;
 toLetter=FromCharacterCode[#+64]&;
-PrFdict=StringSplit@Import[$path<>"Prefix.txt"];
+predict=StringSplit@Import[$path<>"Prefix.txt"];
 PoFdict=StringSplit@Import[$path<>"Postfix.txt"];
 GPdict=toLetter/@#&/@Select[Tuples[Range@26,3],#[[1]]#[[3]]==#[[2]]^2&];
 PTdict=toLetter/@#&/@Select[Tuples[Range@26,3],#[[1]]^2+#[[2]]^2==#[[3]]^2&];
@@ -96,51 +97,56 @@ PossibleWords[format_,testlist_]:=Module[
 	(* \:6d4b\:8bd5\:51fd\:6570 *)
 	test=StringSplit[testlist,";"];
 	tst=Length@test;
-	failed=ConstantArray[True&,tst];
-	function=ConstantArray["",tst];
-	position=ConstantArray[Range@ltr,tst];
-	next=ConstantArray[1,tst];
+	failed={};
+	position={};
+	j=0;
 	For[k=1,k<=tst,k++,
+		j++;
 		Which[
 			StringContainsQ[test[[k]],"["],                                           (* \:51fd\:6570\:6761\:4ef6 *)
-				failed[[k]]=ToExpression["!"<>
-					StringReplace[test[[k]],b:NumberString:>"(toCode@#[["<>b<>"]])"]
-				<>"&"];
-				position[[k]]=ToExpression/@StringCases[test[[k]],NumberString];
-				function[[k]]=StringSplit[test[[k]],"["~~__~~"]"];,
+				function=StringSplit[test[[k]],"["~~__~~"]"][[1]];
+				Switch[function,
+					_,
+					AppendTo[failed,ToExpression["!"<>
+						StringReplace[test[[k]],b:NumberString:>"(toCode@#[["<>b<>"]])"]
+					<>"&"]];
+					AppendTo[position,ToExpression/@StringCases[test[[k]],NumberString]];
+				],
 			StringContainsQ[test[[k]],"="],                                           (* \:7b49\:5f0f\:6761\:4ef6 *)
-				failed[[k]]=ToExpression["!"<>
+				AppendTo[failed,ToExpression["!"<>
 					StringReplace[test[[k]],{
 						"&"~~b:NumberString:>"(toCode@#[["<>b<>"]])",
 						"="->"=="}]
-					<>"&"];
-				position[[k]]=ToExpression/@StringCases[test[[k]],"&"~~b:NumberString:>b];
+					<>"&"]];
+				AppendTo[position,ToExpression/@StringCases[test[[k]],"&"~~b:NumberString:>b]];
 				If[StringMatchQ[test[[k]],("&"~~NumberString~~"=")..~~"&"~~NumberString],
-					intersection=Intersection@@letter[[position[[k]]]];
-					Do[letter[[position[[k,l]]]]=intersection,{l,Length@position[[k]]}];
+					intersection=Intersection@@letter[[position[[j]]]];
+					Do[letter[[position[[j,l]]]]=intersection,{l,Length@position[[j]]}];
 				]
 			StringContainsQ[test[[k]],"~"],                                           (* \:6784\:8bcd\:6761\:4ef6 *)
-				position[[k]]=ToExpression/@StringSplit[test[[k]],"~"];
-				failed[[k]]=!DictionaryWordQ@StringJoin@#[[position[[k]]]]&;
+				AppendTo[position,ToExpression/@StringSplit[test[[k]],"~"]];
+				AppendTo[failed,!DictionaryWordQ@StringJoin@#[[position[[k]]]]&];
 			StringContainsQ[test[[k]],":"],                                           (* \:7edf\:8ba1\:6761\:4ef6 *)
 				pattern=StringSplit[test[[k]],":"][[1]];
 				number=ToExpression@StringSplit[test[[k]],":"][[2]];
-				position[[k]]=Range@ltr;
-				failed[[k]]=Count[#,char_/;MemberQ[PatRule[pattern],char]]!=number&;
+				AppendTo[position,Range@ltr];
+				AppendTo[failed,Count[#,char_/;MemberQ[PatRule[pattern],char]]!=number&];
 		];
 	];
+	tst=j;
 	If[$debug,Print[Column@failed];Print[position];];
 	
 	(* \:4f9d\:6b21\:5339\:914d *)
 	count=0;
 	id=Range@ltr;
 	inv=id;
+	next={};
 	ord=Reverse@DeleteDuplicates@Flatten@SortBy[Join[position,{id}],Length];
 	For[i=1,i<=ltr,i++,
 		inv[[ord[[i]]]]=i;
 	];
 	For[k=1,k<=tst,k++,
-		next[[k]]=Min@inv[[position[[k]]]];
+		AppendTo[next,Min@inv[[position[[k]]]]];
 	];
 	range=Length/@letter[[ord]];
 	pointer=ConstantArray[1,ltr];
@@ -175,8 +181,8 @@ PossibleWords[format_,testlist_]:=Module[
 
 
 (* ::Code:: *)
-(*Timing@PossibleWords["#p@s#s@#@##s","&1=&5;&2=&4;GP[3,7,8];DB[6,4]"]*)
+(*AbsoluteTiming@PossibleWords["#p@#s@#@##s","&1=&5;&2=&4;GP[3,7,8]"]*)
 
 
 (* ::Code:: *)
-(*Timing@PossibleWords["#@#c@#@#@","&2=&4=&4;&3=&7;&1=&3-1;&2=&3+1"]*)
+(*Timing@PossibleWords["#@#c@#@#@","&2=&4=&6;&3=&7;&2=&3+1"]*)
