@@ -1,0 +1,32 @@
+*: Letter
+abcdefghijklmnopqrstuvwxyz
+@: Vowel
+aeiou
+#: Consonant
+bcdfghjklmnpqrstvwxyz
+a: Axial Symmetry
+abcdehikmotuvwxy
+c: Central Symmetry
+hinosxz
+l: With Loop
+abdopqr
+u: Unicursal
+bcdgijlmnoprsuvwz
+p: Prime Number
+bcegkmqsw
+d: Divisible Number
+dfhijlnoprtuvxyz
+s: Square Number
+adipy
+f: Square-Free
+dhilprtxy
+e: Chemical Element
+bcfhiknopsuvwy
+2: Multiple of 2
+bdfhjlnprtvxz
+3: Multiple of 3
+cfilorux
+4: Multiple of 4
+dhlptx
+5: Multiple of 5
+ejoty
