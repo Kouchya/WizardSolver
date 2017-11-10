@@ -2,7 +2,9 @@
 
 (* ::Text:: *)
 (*Version 1.3.6*)
-(*New Feature: Statistic test now supports more than one pattern.*)
+(*New Feature: Statistic test now supports more than one pattern*)
+(*New Feature: AP(Arithmetic Progression)*)
+(*Optimization: optimized the identification of patterns*)
 
 
 (* Initialization *)
@@ -25,6 +27,14 @@ PT[a_,b_,c_]:=(a^2+b^2==c^2);             (* pythagorean Triple    *)
 DB[a_,b_]:=(Mod[a,b]==0);                 (* Divisible By          *)
 GPdict=toLetter/@#&/@Select[Tuples[Range@26,3],GP@@#&];
 PTdict=toLetter/@#&/@Select[Tuples[Range@26,3],PT@@#&];
+(* Patterns *)
+Candidate[format_]:=Module[{patNorm,patInv},
+	If[StringContainsQ[format,"!"],
+		{patNorm,patInv}=Characters/@StringSplit[format,"!"];
+		Intersection[Intersection@@(patRule/@patNorm),Complement[Letters,Union@@(patRule/@patInv)]],
+		Intersection@@patRule/@Characters@format
+	]
+];
 
 
 PossibleWords[format_,testlist_]:=Module[
@@ -32,15 +42,12 @@ PossibleWords[format_,testlist_]:=Module[
 		i,j,k,               (* loop variables *)
 		count,               (* loop counter *)
 		
-		letter={},           (* all possible letters *)
-		ltr=0,               (* the length of the word *)
-		identifier,          (* a symbol for matching *)
-		inverted,            (* inverted meaning of a pattern *)
+		letter,              (* all possible letters *)
+		length,              (* the length of the word *)
 		
 		test,tst,            (* a list of tests and their amount *)
 		expression,          (* equation test: expression *)
 		pattern,number,      (* statistic test: pattern and number *)
-		patNorm,patInv,      (* statistic test: normal and inverted pattern *)
 		function,            (* function test: functions *)
 		position,            (* sequence numbers in a test *)
 		failed,              (* if failing to pass the test *)
@@ -58,23 +65,9 @@ PossibleWords[format_,testlist_]:=Module[
 		answer={}	        (* a list of possible words *)	
 	},
 	
-	(* A rough matching *)
-	For[i=1,i<=StringLength@format,i++,
-		identifier=StringTake[format,{i}];
-		Switch[identifier,
-			"#"|"@"|"*",                                (* letter *)
-				ltr++;
-				inverted=False;
-				AppendTo[letter,patRule[identifier]],
-			"!",                                        (* opposition *)
-				inverted=True,
-			_,                                          (* pattern *)
-				If[inverted,
-					letter[[ltr]]=Complement[Letters,patRule[identifier]]\[Intersection]letter[[ltr]],
-					letter[[ltr]]=patRule[identifier]\[Intersection]letter[[ltr]]
-				];
-		];
-	];
+	(* Rough matching *)
+	letter=Candidate/@StringSplit[StringReplace[format,p:"@"|"#"|"*":>" "<>p]];
+	length=StringCount[format,"@"|"#"|"*"];
 	
 	(* Manipulating the tests *)
 	test=StringSplit[testlist,";"];
@@ -117,39 +110,26 @@ PossibleWords[format_,testlist_]:=Module[
 			StringContainsQ[test[[k]],":"],                                           (* \:7edf\:8ba1\:6761\:4ef6 *)
 				pattern=StringSplit[test[[k]],":"][[1]];
 				number=ToExpression@StringSplit[test[[k]],":"][[2]];
-				AppendTo[position,Range@ltr];
-				If[StringContainsQ[pattern,"!"],
-					{patNorm,patInv}=StringSplit[pattern,"!"];
-					AppendTo[failed,
-						Count[#,char_/;MemberQ[
-							Intersection[Intersection@@(patRule/@Characters@patNorm),
-							Complement[Letters,Union@@(patRule/@Characters@patInv)]],
-						char]]!=number&
-					],
-					AppendTo[failed,
-						Count[#,char_/;MemberQ[
-							Intersection@@patRule/@Characters@pattern,
-						char]]!=number&
-					]
-				];
+				AppendTo[position,Range@length];
+				AppendTo[failed,Count[#,char_/;MemberQ[Candidate[pattern],char]]!=number&]
 		];
 	];
 	If[$debug,Print[Column@failed];Print[position];];
 	
 	(* Brute force *)
 	count=0;
-	id=Range@ltr;
+	id=Range@length;
 	invL=id;
 	next={};
 	ordL=Reverse@DeleteDuplicates@Flatten@SortBy[Join[position,{id}],Length];
-	For[i=1,i<=ltr,i++,
+	For[i=1,i<=length,i++,
 		invL[[ordL[[i]]]]=i;
 	];
 	For[k=1,k<=tst,k++,
 		AppendTo[next,Min@invL[[position[[k]]]]];
 	];
 	range=Length/@letter[[ordL]];
-	pointer=ConstantArray[1,ltr];
+	pointer=ConstantArray[1,length];
 	ordT=SortBy[Range@tst,-next@ordL];
 	If[$debug,
 		Print[ordL];
@@ -175,11 +155,11 @@ PossibleWords[format_,testlist_]:=Module[
 			pointer[[j]]=1;
 		];
 		j=nxt;
-		While[j<=ltr&&pointer[[j]]==range[[j]],
+		While[j<=length&&pointer[[j]]==range[[j]],
 			pointer[[j]]=1;
 			j++;
 		];
-		If[j>ltr,do=False,pointer[[j]]++];
+		If[j>length,do=False,pointer[[j]]++];
 		count++;
 	];
 	If[$debug,Print[count]];
@@ -192,4 +172,4 @@ PossibleWords[format_,testlist_]:=Module[
 
 
 (* ::Code:: *)
-(*AbsoluteTiming@PossibleWords["#@#c@#45@#@","&3=&7;ap!2:2;1~2~3~4~;~8~7"]*)
+(*AbsoluteTiming@PossibleWords["#@#c@#4a!e3@#@","&3=&7;ap:2;1~2~3~4~;~8~7"]*)
