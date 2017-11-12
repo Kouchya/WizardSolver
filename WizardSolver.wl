@@ -1,15 +1,13 @@
 (* ::Package:: *)
 
 (* ::Text:: *)
-(*Version 1.3.6*)
-(*New Feature: Statistic test now supports more than one pattern*)
-(*New Feature: AP(Arithmetic Progression)*)
-(*Optimization: optimized the identification of patterns*)
+(*Version 1.4.0 - alpha*)
+(*modified the structure of the program*)
 
 
 (* Initialization *)
 $Language="English";
-$debug=False;
+$debug=True;
 $path=NotebookDirectory[]<>"Library\\";
 toCode=ToCharacterCode[#][[1]]-96&;
 toLetter=FromCharacterCode[#+96]&;
@@ -47,7 +45,8 @@ PossibleWords[format_,testlist_]:=Module[
 		function,            (* function test: functions *)
 		position,            (* sequence numbers in a test *)
 		failed,              (* if failing to pass the test *)
-		letTmp,              (* a variable for temporary use *)
+		posTmp,              (* a variable for temporary use *)
+		fromTest,
 		
 		do=True,             (* whether the search is to continue *)
 		next,                (* record address for the next trial *)
@@ -64,66 +63,57 @@ PossibleWords[format_,testlist_]:=Module[
 		answer={}	        (* a list of possible words *)	
 	},
 	
+	(* Pretreatments *)
 	letter=Candidate/@StringSplit[StringReplace[format,p:"@"|"#"|"*":>" "<>p]];
 	length=StringCount[format,"@"|"#"|"*"];
 	id=Range@length;
-	
-	(* Manipulating the tests *)
 	test=StringSplit[testlist,";"];
-	j=0;
-	failed={};
 	position={};
+	fromTest={};
 	For[k=1,k<=Length@test,k++,
-		j++;
+		posTmp=ToExpression/@StringCases[test[[k]],NumberString];
 		Which[
 			StringContainsQ[test[[k]],"["],                                           (* function test *)
-				function=StringSplit[test[[k]],"["~~__~~"]"][[1]];
-				AppendTo[position,ToExpression/@StringCases[test[[k]],NumberString]];
-				Switch[function,
+				Switch[StringSplit[test[[k]],"["~~__~~"]"][[1]],
 					"GP",
-						AppendTo[failed,!MemberQ[GPdict,#[[position[[k]]]]]&];
-						Do[letter[[position[[k,l]]]]=Intersection[letter[[position[[k,l]]]],Transpose[GPdict][[l]]],{l,3}],
+						AppendTo[fromTest,{k,#,GP}&/@Range[Length@posTmp-2]];
+						AppendTo[position,posTmp[[{#,#+1,#+2}]]&/@Range[Length@posTmp-2]];
+						Do[
+							letter[[posTmp[[l]]]]=
+							Intersection[letter[[posTmp[[l]]]],Transpose[GPdict][[l]]],
+						{l,3}],
 					"AP",
-						AppendTo[failed,#1+#3!=2#2&@@toCode/@#[[position[[k]]]]&],
+						AppendTo[fromTest,{k,#,AP}&/@Range[Length@posTmp-2]];
+						AppendTo[position,posTmp[[{#,#+1,#+2}]]&/@Range[Length@posTmp-2]],
 					"PT",
-						AppendTo[failed,!MemberQ[PTdict,#[[position[[k]]]]]&];
-						Do[letter[[position[[k,l]]]]=Intersection[letter[[position[[k,l]]]],Transpose[PTdict][[l]]],{l,3}],
+						AppendTo[fromTest,{{k,0,PT}}];
+						AppendTo[position,{posTmp}];
+						Do[
+							letter[[posTmp[[l]]]]=
+							Intersection[letter[[posTmp[[l]]]],Transpose[PTdict][[l]]],
+						{l,3}],
 					"DB",
-						AppendTo[failed,Mod[#1,#2]!=0&@@toCode/@#[[position[[k]]]]&];
+						AppendTo[fromTest,{{k,0,DB}}];
+						AppendTo[position,{posTmp}]
 				],
 			StringContainsQ[test[[k]],"="],                                           (* equation test *)
-				AppendTo[failed,ToExpression["!"<>
-					StringReplace[test[[k]],{
-						"&"~~b:NumberString:>"(toCode@#[["<>b<>"]])",
-						"="->"=="}]
-					<>"&"]];
-				AppendTo[position,ToExpression/@StringCases[test[[k]],"&"~~b:NumberString:>b]];
-				If[StringMatchQ[test[[k]],("&"~~NumberString~~"=")..~~"&"~~NumberString],
-					letTmp=Intersection@@letter[[position[[k]]]];
-					Do[letter[[position[[k,l]]]]=letTmp,{l,Length@position[[k]]}];
-				],
+				AppendTo[fromTest,{{k,0,ET}}];
+				AppendTo[position,{ToExpression/@StringCases[test[[k]],"&"~~b:NumberString:>b]}],
 			StringContainsQ[test[[k]],"~"],                                           (* word test *)
-				AppendTo[position,ToExpression/@StringSplit[test[[k]],"~"]];
-				Which[
-					StringTake[test[[k]],{1}]=="~",
-					AppendTo[failed,!MemberQ[postDict,StringJoin@#[[position[[k]]]]]&],
-					StringTake[test[[k]],{-1}]=="~",
-					AppendTo[failed,!MemberQ[preDict,StringJoin@#[[position[[k]]]]]&],
-					True,
-					AppendTo[failed,!DictionaryWordQ@StringJoin@#[[position[[k]]]]&]
-				],
+				AppendTo[fromTest,{{k,0,WT}}];
+				AppendTo[position,{posTmp}],
 			StringContainsQ[test[[k]],":"],                                           (* statistic test *)
-				pattern=StringSplit[test[[k]],":"][[1]];
-				number=ToExpression@StringSplit[test[[k]],":"][[2]];
-				AppendTo[position,Range@length];
-				AppendTo[failed,Count[#,char_/;MemberQ[Candidate[pattern],char]]!=number&]
+				AppendTo[fromTest,{{k,0,ST}}];
+				AppendTo[position,{id}];
 		];
 	];
-	testN=j;
-	If[$debug,Print[Column@failed];Print["position:",position]];
+	fromTest=Flatten[fromTest,1];
+	position=Flatten[position,1];
+	testN=Length@position;
+	If[$debug,Print["position:",position];Print["fromtest:",fromTest]];
 	
 	(* Brute force *)
-	count=0;
+	(*count=0;
 	invL=id;
 	next={};
 	ordL=Reverse@DeleteDuplicates@Flatten@SortBy[Join[position,{id}],Length];
@@ -146,6 +136,7 @@ PossibleWords[format_,testlist_]:=Module[
 		qualified=True;nxt=1;
 		match=letter[[#,pointer[[invL[[#]]]]]]&/@id;
 		For[k=1,k<=testN,k++,
+			
 			If[failed[[ordT[[k]]]]@match,
 				qualified=False;
 				nxt=Max[nxt,next[[k]]];
@@ -168,21 +159,24 @@ PossibleWords[format_,testlist_]:=Module[
 		count++;
 	];
 	If[$debug,Print["count:",count]];
-	answer
+	answer*)
 ];
 
 
 (* ::Code:: *)
-(*AbsoluteTiming@PossibleWords["#p@#4*s#@#!e#","&4+2=&5;GP[3,7,8];GP[6,5,4];~6~7~8"]*)
+(*PossibleWords["#p@#4*s#@#!e#","&4+2=&5;GP[3,7,8,9];GP[6,5,4];~6~7~8"]*)
 
 
 (* ::Code:: *)
-(*AbsoluteTiming@PossibleWords["#@#c@#f!e@#@","&3=&7;&2=&4=&6;ap:2;1~2~3~4~"]*)
+(*PossibleWords["#@#c@#f!e@#@","&3=&7;&2=&4=&6;ap:2;1~2~3~4~"]*)
 
 
 (* ::Code:: *)
-(*AbsoluteTiming@PossibleWords["@###p@#c","PT[2,4,3];PT[4,2,3];DB[1,5];&6=14"]*)
+(*PossibleWords["@###p@#c","PT[2,4,3];PT[4,2,3];DB[1,5];&6=14"]*)
 
 
 (* ::Code:: *)
-(*AbsoluteTiming@PossibleWords["#s#s#c@#p@#p#cp","&6=9;AP[1,6,3];AP[5,8,2]"]*)
+(*PossibleWords["#s#s#c@#p@#p#cp","&6=9;AP[1,6,3];AP[5,8,2]"]*)
+
+
+
